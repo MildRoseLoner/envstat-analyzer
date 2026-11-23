@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EnvStat · 环境监测数据智能分析器</title>
+<meta name="description" content="面向环境监测数据的智能统计分析工具：描述统计、相关与回归、显著性检验、趋势判断与结论生成。">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230f766e'/><path d='M8 22l5-7 4 4 7-9' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">ES</div>
+    <div>
+      <h1>EnvStat · 环境监测数据智能分析器</h1>
+      <p>选一份监测数据，自动完成描述统计、相关与回归、显著性检验、趋势判断，并生成可引用的分析结论</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="badge">内置示例数据 · 支持自有 CSV</span>
+    <button class="btn" id="btnExport">导出分析报告</button>
+    <button class="btn" id="btnPrint">打印 / 存 PDF</button>
+    <button class="btn primary" id="btnAi">AI 深度解读</button>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- ============ 侧栏 ============ -->
+  <aside class="sidebar">
+    <section class="panel">
+      <h2>数据源</h2>
+      <label>数据集
+        <select id="datasetSelect"></select>
+      </label>
+      <p class="hint" id="datasetDesc">—</p>
+      <label class="drop" id="dropZone">
+        拖入 CSV 文件，或点击选择
+        <input type="file" id="fileInput" accept=".csv,.txt,.tsv">
+      </label>
+      <button class="btn ghost small" id="btnPaste" style="margin-top:8px;width:100%">粘贴表格文本</button>
+      <div id="pasteWrap" class="hidden">
+        <textarea id="pasteBox" placeholder="从 Excel 复制两列以上数据直接粘贴，第一行为表头，例如：&#10;断面,氨氮,总磷&#10;上游,3.21,0.18&#10;中游,5.04,0.26"></textarea>
+        <button class="btn primary small" id="btnParsePaste" style="width:100%">解析并分析</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>分析配置</h2>
+      <label>分析变量
+        <select id="colSelect"></select>
+      </label>
+      <label>相关 / 回归 X 轴
+        <select id="xSelect"></select>
+      </label>
+      <label>相关 / 回归 Y 轴
+        <select id="ySelect"></select>
+      </label>
+      <label>分组变量
+        <select id="groupSelect"></select>
+      </label>
+      <label>时间列
+        <select id="dateSelect"></select>
+      </label>
+      <label>两样本检验方法
+        <select id="testSelect">
+          <option value="welch">Welch t 检验（不假设方差齐性）</option>
+          <option value="student">Student t 检验（假设方差齐性）</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="panel">
+      <h2>模型设置（可选）</h2>
+      <p class="hint">配置 OpenAI 兼容接口后，「AI 深度解读」会调用大模型；未配置时使用本地规则引擎，结果同样可解释。</p>
+      <label>接口地址
+        <input type="text" id="llmBase" placeholder="https://api.openai.com/v1">
+      </label>
+      <label>模型名称
+        <input type="text" id="llmModel" placeholder="gpt-4o-mini / deepseek-chat">
+      </label>
+      <label>API Key
+        <input type="password" id="llmKey" placeholder="sk-...（仅存本机浏览器）">
+      </label>
+      <button class="btn small" id="btnSaveLlm" style="width:100%">保存到本机</button>
+    </section>
+
+    <section class="panel">
+      <h2>分析导航</h2>
+      <nav class="anchor-nav">
+        <a href="#card-quality">01　数据质量概览</a>
+        <a href="#card-desc">02　分布特征</a>
+        <a href="#card-corr">03　相关结构</a>
+        <a href="#card-reg">04　回归分析</a>
+        <a href="#card-group">05　组间差异检验</a>
+        <a href="#card-trend">06　时间趋势</a>
+        <a href="#card-insight">07　智能解读</a>
+      </nav>
+    </section>
+  </aside>
+
+  <!-- ============ 主区 ============ -->
+  <div class="content">
+    <section class="kpis" id="kpis"></section>
+
+    <section class="card" id="card-quality">
+      <div class="card-head">
+        <div>
+          <h3><span class="step-no">01</span>数据质量概览</h3>
+          <div class="sub">先看数据能不能用：样本量、缺失值、异常值与变量类型</div>
+        </div>
+        <div class="chip-row" id="qualityChips"></div>
+      </div>
+      <div class="table-wrap">
+        <table class="data" id="qualityTable"></table>
+      </div>
+      <p class="footnote" id="qualityNote"></p>
+    </section>
+
+    <section class="card" id="card-desc">
+      <div class="card-head">
+        <div>
+          <h3><span class="step-no">02</span>分布特征：<span id="descVarName">—</span></h3>
+          <div class="sub">集中趋势、离散程度与偏态，决定后续该用参数检验还是非参数方法</div>
+        </div>
+        <div class="chip-row" id="descChips"></div>
+      </div>
+      <div class="stat-grid" id="descStats"></div>
+      <div class="two-col">
+        <div class="chart-box"><div id="histChart"></div></div>
+        <div class="chart-box"><div id="ecdfChart"></div></div>
+      </div>
+    </section>
+
+    <section class="card" id="card-corr">
+      <div class="card-head">
+        <div>
+          <h3><span class="step-no">03</span>相关结构</h3>
+          <div class="sub">数值变量两两之间的 Pearson 相关系数与显著性</div>
+        </div>
+        <div class="chip-row" id="corrChips"></div>
+      </div>
+      <div class="two-col">
+        <div class="chart-box"><div id="corrChart"></div></div>
+        <div id="corrList"></div>
+      </div>
+    </section>
+
+    <section class="card" id="card-reg">
+      <div class="card-head">
+        <div>
+          <h3><span class="step-no">04</span>回归分析：<span id="regTitle">—</span></h3>
+          <div class="sub">一元线性回归的系数、拟合优度与显著性，散点上的虚线为拟合直线</div>
+        </div>
+        <div class="chip-row" id="regChips"></div>
+      </div>
+      <div class="two-col">
+        <div class="chart-box"><div id="regChart"></div></div>
+        <div>
+          <div class="table-wrap">
+            <table class="data" id="regTable"></table>
+          </div>
+          <div class="insight" style="margin-top:14px" id="regText"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="card-group">
+      <div class="card-head">
+        <div>
+          <h3><span class="step-no">05</span>组间差异检验</h3>
+          <div class="sub">按分组变量切分，两组用 t 检验、三组及以上自动切换为单因素方差分析</div>
+        </div>
+        <div class="chip-row" id="groupChips"></div>
+      </div>
+      <div class="two-col">
+        <div class="chart-box"><div id="groupChart"></div></div>
+        <div>
+          <div class="table-wrap">
+            <table class="data" id="groupTable"></table>
+          </div>
+          <div class="insight" style="margin-top:14px" id="groupText"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="card-trend">
+      <div class="card-head">
+        <div>
+          <h3><span class="step-no">06</span>时间趋势</h3>
+          <div class="sub">逐期序列、月度均值与 Mann-Kendall 趋势检验（不假设正态分布）</div>
+        </div>
+        <div class="chip-row" id="trendChips"></div>
+      </div>
+      <div class="chart-box" style="margin-bottom:12px"><div id="trendChart"></div></div>
+      <div class="two-col" id="trendDetail">
+        <div class="chart-box"><div id="monthChart"></div></div>
+        <div class="insight" id="trendText"></div>
+      </div>
+    </section>
+
+    <section class="card" id="card-insight">
+      <div class="card-head">
+        <div>
+          <h3><span class="step-no">07</span>智能解读</h3>
+          <div class="sub">把上面各步的计算结果组织成可直接引用的分析结论</div>
+        </div>
+        <div class="chip-row">
+          <button class="btn small" id="btnCopy">复制结论</button>
+          <button class="btn small" id="btnExport2">导出 Markdown</button>
+        </div>
+      </div>
+      <div id="insightBody"></div>
+      <p class="footnote">
+        提示：本地规则引擎按统计量阈值组织语言，结论中的数字均来自本页实时计算；
+        若配置了模型接口并点击「AI 深度解读」，则由大模型在同样的事实清单上重新表述——两种结果都应回到原始数据复核。
+      </p>
+    </section>
+
+    <footer class="footnote">
+      <b>关于数据：</b>内置三套数据集为按公开监测统计特征构造的<b>示例数据</b>（固定随机种子，可复现），
+      用于演示分析流程，不代表任何站点实测值。分析结果仅反映所选样本，不能替代规范的环境质量评价结论。<br>
+      <b>关于方法：</b>描述统计采用样本标准差（n−1）；分位数采用线性插值（与 numpy 默认一致）；
+      两样本检验默认 Welch 校正；方差分析为单因素固定效应模型；趋势检验为带结值修正的 Mann-Kendall 检验，
+      斜率采用 Sen 中位数估计。
+    </footer>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/js/stats.js"></script>
+<script src="assets/js/datasets.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
