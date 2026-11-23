@@ -143,7 +143,9 @@ async function main() {
   const commit = await api(`/repos/${owner}/${REPO}/git/commits`, {
     method: 'POST',
     body: {
-      message: 'feat: EnvStat 环境监测数据智能分析器（纯前端，零依赖，可直接部署 Pages）',
+      message: parents.length
+        ? `chore: 同步站点内容（${files.length} 个文件）`
+        : 'feat: EnvStat 环境监测数据智能分析器（纯前端，零依赖，可直接部署 Pages）',
       tree: newTree.sha,
       parents
     }
