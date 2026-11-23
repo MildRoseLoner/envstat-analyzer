@@ -6,6 +6,11 @@
 - 零第三方依赖：图表是手写 SVG，统计检验是自己实现的算法，不引入任何 CDN
 - 计算可复核：全部统计量在浏览器里实时算，页面上能看到每一条结论对应的数字
 
+**在线访问**：https://mildroseloner.github.io/envstat-analyzer/
+**代码仓库**：https://github.com/MildRoseLoner/envstat-analyzer
+
+> 已部署在 GitHub Pages（`main` 分支根目录）。打开即可使用，无需安装任何环境。
+
 ---
 
 ## 一、功能一览
